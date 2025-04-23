@@ -1,0 +1,2302 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <title>Interactive Video Overlay Tool</title>
+  <style>
+    :root {
+      --primary-color: #4285f4;
+      --secondary-color: #34a853;
+      --error-color: #ea4335;
+      --success-color: #34a853;
+      --warning-color: #fbbc05;
+      --bg-color: #f5f5f5;
+      --text-color: #333;
+      --font-family: Arial, sans-serif;
+      --border-radius: 8px;
+      --box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      --transition-speed: 0.3s;
+    }
+    
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    body {
+      font-family: var(--font-family);
+      margin: 0;
+      padding: 20px;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      line-height: 1.6;
+    }
+    
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      background-color: white;
+      padding: 20px;
+      border-radius: var(--border-radius);
+      box-shadow: var(--box-shadow);
+    }
+    
+    h1, h2, h3 {
+      color: var(--primary-color);
+      margin-bottom: 15px;
+    }
+    
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    
+    /* Player Container */
+    #player-wrapper {
+      position: relative;
+      width: 100%;
+      margin-bottom: 20px;
+    }
+    
+    #player-container {
+      position: relative;
+      width: 100%;
+      padding-top: 56.25%; /* 16:9 Aspect Ratio */
+      background-color: #000;
+      border-radius: var(--border-radius);
+      overflow: hidden;
+    }
+    
+    #youtube-player {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+    
+    /* Progress Bar */
+    #progress-bar-container {
+      position: relative;
+      height: 30px;
+      background-color: #f1f1f1;
+      border-radius: 4px;
+      margin: 15px 0;
+      overflow: hidden;
+    }
+    
+    #progress-bar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 100%;
+      background-color: var(--primary-color);
+      width: 0%;
+      transition: width 0.3s;
+    }
+    
+    .overlay-marker {
+      position: absolute;
+      top: 0;
+      height: 100%;
+      width: 4px;
+      background-color: var(--secondary-color);
+      cursor: pointer;
+      z-index: 2;
+      transform: translateX(-50%);
+    }
+    
+    .overlay-marker.quiz {
+      background-color: var(--warning-color);
+    }
+    
+    .overlay-marker-tooltip {
+      position: absolute;
+      bottom: 30px;
+      background-color: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 5px 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      transform: translateX(-50%);
+      display: none;
+      white-space: nowrap;
+      z-index: 3;
+    }
+    
+    .overlay-marker:hover .overlay-marker-tooltip {
+      display: block;
+    }
+    
+    /* Overlays */
+    .overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.8);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+    
+    .overlay-content {
+      background-color: #333;
+      color: white;
+      padding: 20px;
+      border-radius: var(--border-radius);
+      max-width: 85%;
+      text-align: center;
+      position: relative;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+      overflow-y: auto;
+      max-height: 80vh;
+    }
+    
+    .overlay-title {
+      font-size: 24px;
+      margin-bottom: 15px;
+      color: var(--primary-color);
+    }
+    
+    .overlay-body {
+      margin-bottom: 20px;
+      font-size: 16px;
+      line-height: 1.6;
+    }
+    
+    /* Buttons */
+    .btn {
+      background-color: var(--primary-color);
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+      transition: background-color var(--transition-speed);
+    }
+    
+    .btn:hover {
+      background-color: #3367d6;
+    }
+    
+    .btn-secondary {
+      background-color: #666;
+    }
+    
+    .btn-secondary:hover {
+      background-color: #555;
+    }
+    
+    /* Start Overlay */
+    #start-overlay {
+      display: flex; /* Show this overlay by default */
+    }
+    
+    #start-overlay .overlay-content {
+      background-color: #1a73e8;
+      padding: 30px;
+    }
+    
+    #start-overlay h2 {
+      font-size: 28px;
+      margin-top: 0;
+      color: white;
+    }
+    
+    #start-overlay .btn {
+      background-color: white;
+      color: #1a73e8;
+      font-size: 18px;
+      padding: 12px 24px;
+      margin-top: 20px;
+    }
+    
+    /* Quiz styling */
+    .quiz-options {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin: 20px 0;
+      text-align: left;
+    }
+    
+    .quiz-option {
+      background-color: #444;
+      border: 2px solid #666;
+      border-radius: 6px;
+      padding: 12px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    .quiz-option:hover {
+      background-color: #555;
+    }
+    
+    .quiz-option.selected {
+      border-color: var(--primary-color);
+    }
+    
+    .quiz-option.correct {
+      border-color: var(--success-color);
+      background-color: rgba(52, 168, 83, 0.2);
+    }
+    
+    .quiz-option.incorrect {
+      border-color: var(--error-color);
+      background-color: rgba(234, 67, 53, 0.2);
+    }
+    
+    .feedback {
+      margin-top: 15px;
+      padding: 10px;
+      border-radius: 4px;
+      display: none;
+    }
+    
+    .quiz-explanation {
+      background-color: rgba(255, 255, 255, 0.1);
+      border-radius: 4px;
+      padding: 15px;
+      margin-top: 15px;
+      display: none;
+      text-align: left;
+    }
+    
+    /* Student Report */
+    #report-overlay {
+      z-index: 101; /* Higher than other overlays */
+    }
+    
+    #report-overlay .overlay-content {
+      max-width: 90%;
+      background-color: #fff;
+      color: #333;
+    }
+    
+    .report-section {
+      margin-bottom: 20px;
+    }
+    
+    .report-header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    
+    .report-title {
+      font-size: 28px;
+      color: var(--primary-color);
+      margin-bottom: 5px;
+    }
+    
+    .report-grade {
+      font-size: 36px;
+      font-weight: bold;
+      color: var(--primary-color);
+      margin: 10px 0;
+    }
+    
+    .report-feedback {
+      font-style: italic;
+      background-color: #f5f5f5;
+      padding: 15px;
+      border-radius: 4px;
+      border-left: 4px solid var(--primary-color);
+    }
+    
+    .report-metrics {
+      display: flex;
+      justify-content: space-around;
+      flex-wrap: wrap;
+      margin: 20px 0;
+    }
+    
+    .metric-card {
+      background-color: #f5f5f5;
+      padding: 15px;
+      border-radius: 8px;
+      text-align: center;
+      width: 30%;
+      min-width: 120px;
+      margin-bottom: 15px;
+    }
+    
+    .metric-value {
+      font-size: 24px;
+      font-weight: bold;
+      color: var(--primary-color);
+      margin: 10px 0 5px;
+    }
+    
+    .report-details {
+      margin: 20px 0;
+    }
+    
+    .report-details h3 {
+      margin-bottom: 10px;
+      border-bottom: 1px solid #ddd;
+      padding-bottom: 5px;
+    }
+    
+    .quiz-results-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 15px 0;
+    }
+    
+    .quiz-results-table th, .quiz-results-table td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: left;
+    }
+    
+    .quiz-results-table th {
+      background-color: #f2f2f2;
+    }
+    
+    .result-correct {
+      color: var(--success-color);
+    }
+    
+    .result-incorrect {
+      color: var(--error-color);
+    }
+    
+    .report-actions {
+      display: flex;
+      justify-content: center;
+      gap: 15px;
+      margin-top: 30px;
+    }
+    
+    .share-report-btn {
+      background-color: #34a853;
+    }
+    
+    .download-report-btn {
+      background-color: #4285f4;
+    }
+    
+    .restart-btn {
+      background-color: #fbbc05;
+    }
+    
+    /* Custom controls */
+    #custom-controls {
+      background-color: #f1f1f1;
+      padding: 10px;
+      border-radius: 0 0 var(--border-radius) var(--border-radius);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    #control-left {
+      display: flex;
+      align-items: center;
+    }
+    
+    #control-center {
+      flex-grow: 1;
+      text-align: center;
+    }
+    
+    #control-right {
+      display: flex;
+      align-items: center;
+    }
+    
+    #play-pause-btn {
+      background-color: var(--primary-color);
+      color: white;
+      border: none;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    #time-display {
+      margin-left: 10px;
+      font-family: monospace;
+    }
+    
+    /* Teacher mode toggle */
+    #teacher-mode-container {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background-color: rgba(0, 0, 0, 0.6);
+      padding: 5px 10px;
+      border-radius: 20px;
+      z-index: 101;
+      display: flex;
+      align-items: center;
+    }
+    
+    .toggle-switch {
+      position: relative;
+      display: inline-block;
+      width: 40px;
+      height: 20px;
+      margin-left: 10px;
+    }
+    
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #ccc;
+      transition: .4s;
+      border-radius: 20px;
+    }
+    
+    .toggle-slider:before {
+      position: absolute;
+      content: "";
+      height: 16px;
+      width: 16px;
+      left: 2px;
+      bottom: 2px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+    }
+    
+    input:checked + .toggle-slider {
+      background-color: var(--primary-color);
+    }
+    
+    input:checked + .toggle-slider:before {
+      transform: translateX(20px);
+    }
+    
+    /* Teacher Dashboard */
+    #teacher-dashboard {
+      display: none;
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: white;
+      z-index: 102;
+      overflow-y: auto;
+      padding: 20px;
+    }
+    
+    .dashboard-close {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      font-size: 24px;
+      cursor: pointer;
+    }
+    
+    .dashboard-section {
+      margin-bottom: 20px;
+    }
+    
+    .metric-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    
+    .metric-card {
+      background-color: #f5f5f5;
+      border-radius: var(--border-radius);
+      padding: 15px;
+      flex: 1;
+      margin: 0 10px;
+      text-align: center;
+    }
+    
+    .metric-value {
+      font-size: 24px;
+      font-weight: bold;
+      margin: 10px 0;
+      color: var(--primary-color);
+    }
+    
+    .performance-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+    
+    .performance-table th, .performance-table td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: left;
+    }
+    
+    .performance-table th {
+      background-color: #f2f2f2;
+    }
+    
+    .performance-table tr:nth-child(even) {
+      background-color: #f9f9f9;
+    }
+    
+    /* Notes functionality */
+    #notes-panel {
+      position: absolute;
+      width: 300px;
+      height: 100%;
+      right: -300px;
+      top: 0;
+      background-color: white;
+      box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
+      transition: right 0.3s;
+      z-index: 90;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    #notes-panel.open {
+      right: 0;
+    }
+    
+    #notes-header {
+      padding: 10px;
+      background-color: var(--primary-color);
+      color: white;
+      text-align: center;
+      position: sticky;
+      top: 0;
+    }
+    
+    #notes-content {
+      flex-grow: 1;
+      overflow-y: auto;
+      padding: 10px;
+    }
+    
+    .note-item {
+      margin-bottom: 10px;
+      padding: 10px;
+      background-color: #f9f9f9;
+      border-radius: 4px;
+      border-left: 3px solid var(--primary-color);
+    }
+    
+    .note-time {
+      font-size: 12px;
+      color: #666;
+    }
+    
+    #note-input-container {
+      padding: 10px;
+      border-top: 1px solid #eee;
+      position: sticky;
+      bottom: 0;
+      background-color: white;
+    }
+    
+    #note-input {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      resize: vertical;
+      min-height: 80px;
+    }
+    
+    #save-note-btn {
+      width: 100%;
+      margin-top: 10px;
+      background-color: var(--primary-color);
+    }
+    
+    #notes-toggle-btn {
+      background-color: var(--primary-color);
+      color: white;
+      border: none;
+      border-radius: 4px;
+      padding: 5px 10px;
+      cursor: pointer;
+      margin-left: 10px;
+    }
+    
+    /* Status Messages */
+    #status {
+      margin: 20px 0;
+      padding: 10px;
+      border-radius: 4px;
+      text-align: center;
+      display: none;
+    }
+    
+    .error {
+      background-color: #ffebee;
+      color: #c62828;
+      border: 1px solid #ef9a9a;
+    }
+    
+    .info {
+      background-color: #e3f2fd;
+      color: #1565c0;
+      border: 1px solid #90caf9;
+    }
+    
+    .success {
+      background-color: #e8f5e9;
+      color: #2e7d32;
+      border: 1px solid #a5d6a7;
+    }
+    
+    /* Loading Indicators */
+    #loading {
+      text-align: center;
+      margin: 20px 0;
+    }
+    
+    .spinner {
+      display: inline-block;
+      width: 30px;
+      height: 30px;
+      border: 3px solid rgba(0, 0, 0, 0.1);
+      border-radius: 50%;
+      border-top-color: var(--primary-color);
+      animation: spin 1s ease-in-out infinite;
+    }
+    
+    .transition-loader {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 99;
+    }
+    
+    .loader-content {
+      text-align: center;
+      color: white;
+    }
+    
+    /* Multimedia */
+    .overlay-image {
+      max-width: 100%;
+      margin: 10px 0;
+      border-radius: 4px;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    /* Media Queries for Responsive Design */
+    @media (max-width: 768px) {
+      .container {
+        padding: 10px;
+      }
+      
+      .overlay-content {
+        max-width: 95%;
+        padding: 15px;
+      }
+      
+      #custom-controls {
+        flex-direction: column;
+      }
+      
+      #control-center {
+        margin: 10px 0;
+      }
+      
+      .metric-row {
+        flex-direction: column;
+      }
+      
+      .metric-card {
+        margin: 10px 0;
+      }
+      
+      #notes-panel {
+        width: 100%;
+        right: -100%;
+      }
+      
+      .report-metrics {
+        flex-direction: column;
+      }
+      
+      .metric-card {
+        width: 100%;
+      }
+      
+      .report-actions {
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Interactive Video Overlay Tool</h1>
+    
+    <div id="status"></div>
+    
+    <div id="loading">
+      <div class="spinner"></div>
+      <p>Loading video data...</p>
+    </div>
+    
+    <div id="video-details" style="display:none;">
+      <h2 id="video-title"></h2>
+    </div>
+    
+    <div id="player-wrapper">
+      <div id="player-container">
+        <div id="youtube-player"></div>
+        
+        <!-- Teacher Mode Toggle -->
+        <div id="teacher-mode-container" style="display:none;">
+          <span style="color:white">Teacher Mode</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="teacher-mode-toggle">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        
+        <!-- Start Overlay - Click to Begin -->
+        <div id="start-overlay" class="overlay">
+          <div class="overlay-content">
+            <h2>Interactive Video Activity</h2>
+            <p>This video contains interactive elements that will appear at specific moments.</p>
+            <button class="btn" id="start-btn">Click here to begin activity</button>
+          </div>
+        </div>
+        
+        <!-- Content Overlay - For timed overlays -->
+        <div id="content-overlay" class="overlay">
+          <div class="overlay-content">
+            <h3 id="overlay-title" class="overlay-title"></h3>
+            <div id="overlay-body" class="overlay-body"></div>
+            <div id="overlay-image-container"></div>
+            <div id="quiz-options" class="quiz-options"></div>
+            <div id="feedback" class="feedback"></div>
+            <div id="quiz-explanation" class="quiz-explanation"></div>
+            <button class="btn" id="continue-btn">Continue</button>
+          </div>
+        </div>
+        
+        <!-- Student Report Overlay -->
+        <div id="report-overlay" class="overlay">
+          <div class="overlay-content">
+            <div class="report-header">
+              <h2 class="report-title">Activity Complete</h2>
+              <p id="report-message">You have completed this interactive video.</p>
+              <div id="report-grade-container">
+                <div class="report-grade" id="report-grade">0%</div>
+              </div>
+              <div class="report-feedback" id="report-feedback"></div>
+            </div>
+            
+            <div class="report-section">
+              <h3>Performance Summary</h3>
+              <div class="report-metrics">
+                <div class="metric-card">
+                  <h4>Questions</h4>
+                  <div class="metric-value" id="total-questions">0</div>
+                </div>
+                <div class="metric-card">
+                  <h4>Correct</h4>
+                  <div class="metric-value" id="correct-answers">0</div>
+                </div>
+                <div class="metric-card">
+                  <h4>Accuracy</h4>
+                  <div class="metric-value" id="accuracy-percentage">0%</div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="report-details" id="quiz-details-section">
+              <h3>Question Details</h3>
+              <table class="quiz-results-table" id="quiz-results-table">
+                <thead>
+                  <tr>
+                    <th>Question</th>
+                    <th>Your Answer</th>
+                    <th>Result</th>
+                    <th>Time (sec)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <!-- Will be populated dynamically -->
+                </tbody>
+              </table>
+            </div>
+            
+            <div class="report-details" id="viewing-stats-section">
+              <h3>Viewing Statistics</h3>
+              <div class="report-metrics">
+                <div class="metric-card">
+                  <h4>Total Time</h4>
+                  <div class="metric-value" id="total-time-spent">0:00</div>
+                </div>
+                <div class="metric-card">
+                  <h4>Completion</h4>
+                  <div class="metric-value" id="completion-percentage">0%</div>
+                </div>
+                <div class="metric-card">
+                  <h4>Notes Taken</h4>
+                  <div class="metric-value" id="notes-count">0</div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="report-actions">
+              <button class="btn restart-btn" id="restart-btn">Restart Video</button>
+              <button class="btn download-report-btn" id="download-report-btn">Download Report</button>
+              <button class="btn share-report-btn" id="share-report-btn">Share Results</button>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Transition Loader -->
+        <div id="transition-loader" class="transition-loader">
+          <div class="loader-content">
+            <div class="spinner"></div>
+            <p id="transition-message">Loading next segment...</p>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Progress Bar with Overlay Markers -->
+      <div id="progress-bar-container" style="display:none;">
+        <div id="progress-bar"></div>
+        <!-- Overlay markers will be added here dynamically -->
+      </div>
+      
+      <!-- Custom video controls -->
+      <div id="custom-controls">
+        <div id="control-left">
+          <button id="play-pause-btn">▶</button>
+          <span id="time-display">0:00 / 0:00</span>
+        </div>
+        <div id="control-center">
+          <!-- Middle section for potential additional controls -->
+        </div>
+        <div id="control-right">
+          <button id="dashboard-btn" class="btn btn-secondary" style="display:none;">Dashboard</button>
+          <button id="notes-toggle-btn" style="display:none;">Notes</button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Teacher Dashboard -->
+    <div id="teacher-dashboard">
+      <div class="dashboard-close">&times;</div>
+      <h2>Teacher Dashboard</h2>
+      
+      <div class="dashboard-section">
+        <h3>Quiz Performance Overview</h3>
+        <div class="metric-row">
+          <div class="metric-card">
+            <h4>Total Attempts</h4>
+            <div class="metric-value" id="total-attempts">0</div>
+          </div>
+          <div class="metric-card">
+            <h4>Correct Response Rate</h4>
+            <div class="metric-value" id="correct-percentage">0%</div>
+          </div>
+          <div class="metric-card">
+            <h4>Average Time to Answer</h4>
+            <div class="metric-value" id="avg-time">0s</div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="dashboard-section">
+        <h3>Quiz Performance by Question</h3>
+        <table class="performance-table" id="overlay-performance-table">
+          <thead>
+            <tr>
+              <th>Question</th>
+              <th>Attempts</th>
+              <th>Correct %</th>
+              <th>Incorrect %</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- Will be populated dynamically -->
+          </tbody>
+        </table>
+      </div>
+      
+      <div class="dashboard-section">
+        <h3>User Performance</h3>
+        <table class="performance-table" id="user-performance-table">
+          <thead>
+            <tr>
+              <th>User ID</th>
+              <th>Attempts</th>
+              <th>Correct %</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- Will be populated dynamically -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+    
+    <!-- Notes Panel -->
+    <div id="notes-panel">
+      <div id="notes-header">
+        <h3>Video Notes</h3>
+      </div>
+      <div id="notes-content">
+        <!-- Notes will be displayed here -->
+      </div>
+      <div id="note-input-container">
+        <textarea id="note-input" placeholder="Type your note here..."></textarea>
+        <button id="save-note-btn" class="btn">Save Note</button>
+      </div>
+    </div>
+    <form id="lms-results-form" style="display:none;">
+      <input type="hidden" id="lms-user-id" name="user_id" value="">
+      <input type="hidden" id="lms-score" name="score" value="">
+      <input type="hidden" id="lms-completion" name="completion" value="">
+      <input type="hidden" id="lms-time-spent" name="time_spent" value="">
+      <input type="hidden" id="lms-results-json" name="results_json" value="">
+    </form>
+
+    <!-- 2. Add accessibility toolbar -->
+    <div id="accessibility-toolbar" class="accessibility-bar">
+      <button id="toggle-captions-btn" class="accessibility-btn" title="Toggle Captions">
+        <span class="accessibility-icon">CC</span>
+      </button>
+      <button id="increase-font-btn" class="accessibility-btn" title="Increase Font Size">
+        <span class="accessibility-icon">A+</span>
+      </button>
+      <button id="decrease-font-btn" class="accessibility-btn" title="Decrease Font Size">
+        <span class="accessibility-icon">A-</span>
+      </button>
+      <button id="high-contrast-btn" class="accessibility-btn" title="Toggle High Contrast">
+        <span class="accessibility-icon">◐</span>
+      </button>
+    </div>
+
+    <!-- 3. Add HTML structure for caption display -->
+    <div id="caption-container" style="display:none;">
+      <div id="caption-text"></div>
+    </div>
+  </div>
+
+  <script>
+    // Global variables
+    let player;
+    let videoData;
+    let overlays = [];
+    let overlayGroups = {};
+    let overlaysByTitle = {};
+    let checkInterval;
+    let updateTimeInterval;
+    let displayedOverlays = new Set();
+    let videoStarted = false;
+    let isQuizAnswered = false;
+    let currentOverlay = null;
+    let quizStartTime = 0;
+    let sessionId = generateSessionId();
+    let userId = 'anonymous';
+    let isTeacherMode = false;
+    let manualSeek = false;
+    let requireCorrectAnswers = false;
+    let allowSkipping = false;
+    let showStudentReport = true;
+      // Enhanced analytics tracking
+    let analyticsData = {
+      interactionPoints: [],
+      attentionMetrics: {
+        focusTime: 0,
+        distractionCount: 0,
+        lastFocusTimestamp: null
+      },
+      comprehensionMetrics: {
+        correctFirstAttempt: 0,
+        incorrectAttempts: 0,
+        retryAttempts: 0
+      },
+      navigationMetrics: {
+        rewinds: 0,
+        skips: 0,
+        pausePoints: []
+      }
+    };
+    let quizResults = [];
+    
+    // Load video when page loads
+    window.onload = function() {
+      initApp();
+    };
+    
+    /**
+     * Initializes the application
+     */
+    function initApp() {
+      showStatus("Loading video data...", "info");
+      
+      // Set up event listeners
+      document.getElementById("start-btn").addEventListener("click", startActivity);
+      document.getElementById("play-pause-btn").addEventListener("click", togglePlayPause);
+      document.getElementById("notes-toggle-btn").addEventListener("click", toggleNotesPanel);
+      document.getElementById("save-note-btn").addEventListener("click", saveNote);
+      document.getElementById("dashboard-btn").addEventListener("click", toggleTeacherDashboard);
+      document.querySelector("#teacher-dashboard .dashboard-close").addEventListener("click", toggleTeacherDashboard);
+      document.getElementById("teacher-mode-toggle").addEventListener("change", toggleTeacherMode);
+      
+      // Set up student report buttons
+      document.getElementById("restart-btn").addEventListener("click", restartVideo);
+      document.getElementById("download-report-btn").addEventListener("click", downloadReport);
+      document.getElementById("share-report-btn").addEventListener("click", shareReport);
+      
+      // First, get the default video
+      google.script.run
+        .withSuccessHandler(handleVideoData)
+        .withFailureHandler(handleError)
+        .getDefaultVideo();
+    }
+    
+    /**
+     * Handles the video data response
+     * @param {Object} data - Video data
+     */
+    function handleVideoData(data) {
+      if (data.error) {
+        showStatus("Error: " + data.error, "error");
+        document.getElementById("loading").style.display = "none";
+        return;
+      }
+      
+      videoData = data;
+      document.getElementById("video-title").textContent = data.videoTitle;
+      document.getElementById("video-details").style.display = "block";
+      
+      // Apply settings
+      applySettings(data.settings);
+      
+      // Now get the overlays for this video
+      google.script.run
+        .withSuccessHandler(handleOverlaysData)
+        .withFailureHandler(handleError)
+        .getOverlaysForVideo(data.videoTitle);
+    }
+    
+    /**
+     * Applies application settings
+     * @param {Object} settings - Settings object
+     */
+    function applySettings(settings) {
+      if (!settings) return;
+      
+      // Apply theme colors
+      if (settings.PrimaryColor) {
+        document.documentElement.style.setProperty('--primary-color', settings.PrimaryColor);
+      }
+      
+      if (settings.SecondaryColor) {
+        document.documentElement.style.setProperty('--secondary-color', settings.SecondaryColor);
+      }
+      
+      // Show/hide teacher mode toggle
+      if (settings.TeacherModeEnabled) {
+        document.getElementById("teacher-mode-container").style.display = "flex";
+        document.getElementById("dashboard-btn").style.display = "inline-block";
+      }
+      
+      // Show/hide notes button
+      if (settings.AllowNotes) {
+        document.getElementById("notes-toggle-btn").style.display = "inline-block";
+      }
+      
+      // Show/hide progress bar
+      if (settings.ShowProgressBar) {
+        document.getElementById("progress-bar-container").style.display = "block";
+      }
+      
+      // Set whether to show the student report
+      showStudentReport = settings.ShowStudentReport !== false;
+      
+      // Set whether to allow skipping
+      allowSkipping = settings.AllowSkipping === true;
+      
+      // Set whether to require correct answers
+      requireCorrectAnswers = settings.RequireCorrectAnswers === true;
+    }
+    
+    /**
+     * Handles the overlays data response
+     * @param {Object} data - Overlays data
+     */
+    function handleOverlaysData(data) {
+      if (data.error) {
+        showStatus("Error loading overlays: " + data.error, "error");
+        // Still load the video even if overlays fail
+        loadYouTubePlayer();
+        return;
+      }
+      
+      overlays = data.overlays || [];
+      overlayGroups = data.groups || {};
+      overlaysByTitle = data.overlaysByTitle || {};
+      
+      // Create progress bar markers
+      if (document.getElementById("progress-bar-container").style.display !== "none") {
+        createOverlayMarkers();
+      }
+      
+      // Load the YouTube player
+      loadYouTubePlayer();
+      
+      // Get user notes
+      if (document.getElementById("notes-toggle-btn").style.display !== "none") {
+        loadUserNotes();
+      }
+    }
+    
+    /**
+     * Creates markers on the progress bar for each overlay
+     */
+    function createOverlayMarkers() {
+      const progressBar = document.getElementById("progress-bar-container");
+      
+      // Clear existing markers
+      const existingMarkers = progressBar.querySelectorAll('.overlay-marker');
+      existingMarkers.forEach(marker => marker.remove());
+      
+      // Will be set once the player is loaded and duration is available
+      const addMarkers = function() {
+        if (!player || !player.getDuration) return;
+        
+        const duration = player.getDuration();
+        if (!duration) return;
+        
+        overlays.forEach((overlay, index) => {
+          const percent = (overlay.timestamp / duration) * 100;
+          
+          const marker = document.createElement('div');
+          marker.className = 'overlay-marker';
+          if (overlay.type.includes('quiz')) {
+            marker.classList.add('quiz');
+          }
+          marker.style.left = percent + '%';
+          
+          const tooltip = document.createElement('div');
+          tooltip.className = 'overlay-marker-tooltip';
+          tooltip.textContent = overlay.title + ' (' + formatTime(overlay.timestamp) + ')';
+          
+          marker.appendChild(tooltip);
+          progressBar.appendChild(marker);
+          
+          // Add click event to seek to this timestamp if skipping is allowed
+          if (allowSkipping) {
+            marker.addEventListener('click', function() {
+              if (videoStarted && player && player.seekTo) {
+                manualSeek = true;
+                player.seekTo(overlay.timestamp);
+              }
+            });
+          }
+        });
+      };
+      
+      // Set interval to check if player is ready
+      const markerInterval = setInterval(() => {
+        if (player && player.getDuration && player.getDuration() > 0) {
+          addMarkers();
+          clearInterval(markerInterval);
+        }
+      }, 500);
+    }
+    
+    /**
+     * Loads user notes for this video
+     */
+    function loadUserNotes() {
+      if (!videoData || !videoData.videoTitle) return;
+      
+      google.script.run
+        .withSuccessHandler(displayUserNotes)
+        .withFailureHandler(error => console.error("Error loading notes:", error))
+        .getUserNotes(videoData.videoTitle, userId);
+    }
+    
+    /**
+     * Displays the user's notes in the notes panel
+     * @param {Object} data - Notes data
+     */
+    function displayUserNotes(data) {
+      if (data.error) {
+        console.error("Error loading notes:", data.error);
+        return;
+      }
+      
+      const notesContent = document.getElementById("notes-content");
+      notesContent.innerHTML = "";
+      
+      if (!data.notes || data.notes.length === 0) {
+        notesContent.innerHTML = "<p>No notes yet. Add notes while watching the video.</p>";
+        return;
+      }
+      
+      // Sort notes by video time
+      data.notes.sort((a, b) => a.videoTime - b.videoTime);
+      
+      data.notes.forEach(note => {
+        const noteElement = document.createElement("div");
+        noteElement.className = "note-item";
+        
+        const timeElement = document.createElement("div");
+        timeElement.className = "note-time";
+        timeElement.textContent = formatTime(note.videoTime);
+        
+        const contentElement = document.createElement("div");
+        contentElement.className = "note-content";
+        contentElement.textContent = note.content;
+        
+        noteElement.appendChild(timeElement);
+        noteElement.appendChild(contentElement);
+        
+        // Add click event to jump to this timestamp if skipping is allowed
+        if (allowSkipping) {
+          noteElement.addEventListener('click', function() {
+            if (videoStarted && player && player.seekTo) {
+              manualSeek = true;
+              player.seekTo(note.videoTime);
+              document.getElementById("notes-panel").classList.remove("open");
+            }
+          });
+        }
+        
+        notesContent.appendChild(noteElement);
+      });
+    }
+    
+    /**
+     * Saves a note at the current video time
+     */
+    function saveNote() {
+      const noteInput = document.getElementById("note-input");
+      const noteContent = noteInput.value.trim();
+      
+      if (!noteContent) {
+        showStatus("Please enter a note", "error");
+        return;
+      }
+      
+      if (!videoData || !videoData.videoTitle || !player || !player.getCurrentTime) {
+        showStatus("Cannot save note at this time", "error");
+        return;
+      }
+      
+      const currentTime = player.getCurrentTime();
+      
+      const noteData = {
+        userId: userId,
+        videoTitle: videoData.videoTitle,
+        videoTime: currentTime,
+        noteContent: noteContent,
+        sessionId: sessionId
+      };
+      
+      // Show saving indicator
+      noteInput.disabled = true;
+      document.getElementById("save-note-btn").textContent = "Saving...";
+      
+      google.script.run
+        .withSuccessHandler(function(result) {
+          // Clear input and re-enable
+          noteInput.value = "";
+          noteInput.disabled = false;
+          document.getElementById("save-note-btn").textContent = "Save Note";
+          
+          if (result.error) {
+            showStatus("Error saving note: " + result.error, "error");
+            return;
+          }
+          
+          // Reload notes
+          loadUserNotes();
+        })
+        .withFailureHandler(function(error) {
+          noteInput.disabled = false;
+          document.getElementById("save-note-btn").textContent = "Save Note";
+          showStatus("Error saving note: " + error, "error");
+        })
+        .saveUserNote(noteData);
+    }
+    
+    /**
+     * Toggles the notes panel visibility
+     */
+    function toggleNotesPanel() {
+      const notesPanel = document.getElementById("notes-panel");
+      notesPanel.classList.toggle("open");
+    }
+    
+    /**
+     * Toggles the teacher dashboard
+     */
+    function toggleTeacherDashboard() {
+      const dashboard = document.getElementById("teacher-dashboard");
+      
+      if (dashboard.style.display === "block") {
+        dashboard.style.display = "none";
+      } else {
+        // Load latest analytics data
+        loadAnalyticsData();
+        dashboard.style.display = "block";
+      }
+    }
+    
+    /**
+     * Loads analytics data for the teacher dashboard
+     */
+    function loadAnalyticsData() {
+      if (!videoData || !videoData.videoTitle) return;
+      
+      google.script.run
+        .withSuccessHandler(displayAnalyticsData)
+        .withFailureHandler(error => console.error("Error loading analytics:", error))
+        .getQuizPerformanceReport(videoData.videoTitle);
+    }
+    
+    /**
+     * Displays analytics data in the teacher dashboard
+     * @param {Object} data - Analytics data
+     */
+    function displayAnalyticsData(data) {
+      if (data.error) {
+        console.error("Error loading analytics:", data.error);
+        return;
+      }
+      
+      // Update overview metrics
+      document.getElementById("total-attempts").textContent = data.totalAttempts;
+      document.getElementById("correct-percentage").textContent = 
+        data.correctPercentage ? data.correctPercentage.toFixed(1) + "%" : "0%";
+      document.getElementById("avg-time").textContent = 
+        data.averageTimeToAnswer ? data.averageTimeToAnswer.toFixed(1) + "s" : "0s";
+      
+      // Update overlay performance table
+      const overlayTable = document.getElementById("overlay-performance-table").querySelector("tbody");
+      overlayTable.innerHTML = "";
+      
+      for (const overlayId in data.quizzesByOverlay) {
+        const overlay = data.quizzesByOverlay[overlayId];
+        
+        // Find overlay title
+        let overlayTitle = "Unknown Question";
+        for (const ovl of overlays) {
+          if (ovl.id === overlayId) {
+            overlayTitle = ovl.title;
+            break;
+          }
+        }
+        
+        const row = document.createElement("tr");
+        
+        const titleCell = document.createElement("td");
+        titleCell.textContent = overlayTitle;
+        
+        const attemptsCell = document.createElement("td");
+        attemptsCell.textContent = overlay.totalAttempts;
+        
+        const correctCell = document.createElement("td");
+        correctCell.textContent = overlay.correctPercentage ? 
+          overlay.correctPercentage.toFixed(1) + "%" : "0%";
+        
+        const incorrectCell = document.createElement("td");
+        const incorrectPercentage = overlay.totalAttempts > 0 ? 
+          100 - overlay.correctPercentage : 0;
+        incorrectCell.textContent = incorrectPercentage.toFixed(1) + "%";
+        
+        row.appendChild(titleCell);
+        row.appendChild(attemptsCell);
+        row.appendChild(correctCell);
+        row.appendChild(incorrectCell);
+        
+        overlayTable.appendChild(row);
+      }
+      
+      // Update user performance table
+      const userTable = document.getElementById("user-performance-table").querySelector("tbody");
+      userTable.innerHTML = "";
+      
+      for (const userId in data.userPerformance) {
+        const user = data.userPerformance[userId];
+        
+        const row = document.createElement("tr");
+        
+        const userCell = document.createElement("td");
+        userCell.textContent = userId;
+        
+        const attemptsCell = document.createElement("td");
+        attemptsCell.textContent = user.totalAttempts;
+        
+        const correctCell = document.createElement("td");
+        correctCell.textContent = user.correctPercentage ? 
+          user.correctPercentage.toFixed(1) + "%" : "0%";
+        
+        row.appendChild(userCell);
+        row.appendChild(attemptsCell);
+        row.appendChild(correctCell);
+        
+        userTable.appendChild(row);
+      }
+    }
+    
+    /**
+     * Toggles teacher mode
+     */
+    function toggleTeacherMode() {
+      isTeacherMode = document.getElementById("teacher-mode-toggle").checked;
+      
+      // Record event
+      recordEvent("toggle_teacher_mode", { isEnabled: isTeacherMode });
+    }
+    
+    /**
+     * Records user event for analytics
+     * @param {string} eventType - Type of event
+     * @param {Object} eventData - Event data
+     */
+    function recordEvent(eventType, eventData = {}) {
+      if (!videoData || !videoData.videoTitle) return;
+      
+      const data = {
+        sessionId: sessionId,
+        userId: userId,
+        videoTitle: videoData.videoTitle,
+        eventType: eventType,
+        eventData: JSON.stringify(eventData),
+        browser: navigator.userAgent,
+        device: getDeviceInfo()
+      };
+      
+      google.script.run
+        .withFailureHandler(error => console.error("Error recording event:", error))
+        .recordUserEvent(data);
+    }
+    
+    /**
+     * Gets basic device information
+     * @returns {string} Device information
+     */
+    function getDeviceInfo() {
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      return isMobile ? "Mobile" : "Desktop";
+    }
+    
+    /**
+     * Loads the YouTube player
+     */
+    function loadYouTubePlayer() {
+      // Load YouTube IFrame API script
+      const tag = document.createElement('script');
+      tag.src = "https://www.youtube.com/iframe_api";
+      const firstScriptTag = document.getElementsByTagName('script')[0];
+      firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+      
+      // The API will call onYouTubeIframeAPIReady() when loaded
+      window.onYouTubeIframeAPIReady = createPlayer;
+    }
+    
+    /**
+     * Creates the YouTube player
+     */
+    function createPlayer() {
+      player = new YT.Player('youtube-player', {
+        videoId: videoData.videoId,
+        playerVars: {
+          autoplay: 0,        // Don't autoplay initially
+          controls: 0,        // Hide player controls
+          disablekb: 1,       // Disable keyboard controls
+          fs: 0,              // Disable fullscreen button
+          modestbranding: 1,  // Hide YouTube logo
+          rel: 0,             // Don't show related videos
+          showinfo: 0,        // Hide video title and uploader
+          iv_load_policy: 3   // Hide annotations
+        },
+        events: {
+          'onReady': onPlayerReady,
+          'onStateChange': onPlayerStateChange
+        }
+      });
+    }
+    
+    /**
+     * YouTube player onReady handler
+     */
+    function onPlayerReady() {
+      // Hide loading indicator
+      document.getElementById("loading").style.display = "none";
+      
+      // Start video paused (don't play automatically)
+      player.stopVideo();
+      
+      // Update the time display
+      updateTimeDisplay();
+      updateTimeInterval = setInterval(updateTimeDisplay, 1000);
+      
+      // Record event
+      recordEvent("video_loaded");
+    }
+    
+    /**
+     * Starts the video activity
+     */
+    function startActivity() {
+      // Hide the start overlay
+      document.getElementById("start-overlay").style.display = "none";
+      
+      // Start the video
+      if (player && player.playVideo) {
+        player.playVideo();
+        videoStarted = true;
+        document.getElementById("play-pause-btn").textContent = "⏸️";
+      }
+      
+      // Start checking for overlays
+      startCheckingTime();
+      
+      // Record event
+      recordEvent("activity_started");
+    }
+    
+    /**
+     * Toggles play/pause state
+     */
+    function togglePlayPause() {
+      if (!player) return;
+      
+      const button = document.getElementById("play-pause-btn");
+      
+      if (player.getPlayerState() === YT.PlayerState.PLAYING) {
+        player.pauseVideo();
+        button.textContent = "▶️";
+        
+        // Record event
+        recordEvent("video_paused", { time: player.getCurrentTime() });
+      } else {
+        // If video hasn't started yet, trigger the start activity
+        if (!videoStarted) {
+          startActivity();
+        } else {
+          player.playVideo();
+          button.textContent = "⏸️";
+          
+          // Record event
+          recordEvent("video_resumed", { time: player.getCurrentTime() });
+        }
+      }
+    }
+    
+    /**
+     * Updates the time display and progress bar
+     */
+    function updateTimeDisplay() {
+      if (!player || !player.getCurrentTime) return;
+      
+      const currentTime = player.getCurrentTime();
+      const duration = player.getDuration() || 0;
+      
+      // Update time display
+      document.getElementById("time-display").textContent = 
+        formatTime(currentTime) + " / " + formatTime(duration);
+      
+      // Update progress bar
+      const progressPercent = (currentTime / duration) * 100;
+      document.getElementById("progress-bar").style.width = progressPercent + "%";
+    }
+    
+    /**
+     * Formats seconds into MM:SS format
+     * @param {number} seconds - Time in seconds
+     * @returns {string} Formatted time string
+     */
+    function formatTime(seconds) {
+      seconds = Math.floor(seconds);
+      const minutes = Math.floor(seconds / 60);
+      seconds = seconds % 60;
+      return minutes + ":" + (seconds < 10 ? "0" + seconds : seconds);
+    }
+    
+    /**
+     * YouTube player onStateChange handler
+     * @param {Object} event - Player state change event
+     */
+    function onPlayerStateChange(event) {
+      // Update play/pause button text
+      const button = document.getElementById("play-pause-btn");
+      
+      if (event.data === YT.PlayerState.PLAYING) {
+        button.textContent = "⏸️";
+        startCheckingTime();
+      } else if (event.data === YT.PlayerState.PAUSED) {
+        button.textContent = "▶️";
+        stopCheckingTime();
+      } else if (event.data === YT.PlayerState.ENDED) {
+        button.textContent = "▶️";
+        stopCheckingTime();
+        
+        // If video ended, show the report or start overlay
+        videoCompleted();
+      }
+    }
+    
+    /**
+     * Handles video completion
+     */
+    function videoCompleted() {
+      // Record event
+      recordEvent("video_completed");
+      
+      if (showStudentReport) {
+        // Generate and show student report
+        showStudentReport();
+      } else {
+        // Just show the start overlay for potential replay
+        document.getElementById("start-overlay").style.display = "flex";
+        videoStarted = false;
+        
+        // Reset displayed overlays so they'll show again on replay
+        displayedOverlays = new Set();
+      }
+    }
+    
+    /**
+     * Shows the student performance report
+     */
+    function showStudentReport() {
+      // Show transition loader
+      showTransitionLoader("Generating your report...");
+      
+      // Get report data from server
+      google.script.run
+        .withSuccessHandler(displayStudentReport)
+        .withFailureHandler(function(error) {
+          hideTransitionLoader();
+          showStatus("Error generating report: " + error, "error");
+          // Show start overlay as fallback
+          document.getElementById("start-overlay").style.display = "flex";
+        })
+        .getStudentReport(videoData.videoTitle, sessionId, userId);
+    }
+    
+    /**
+     * Displays the student performance report
+     * @param {Object} report - Student performance report
+     */
+    function displayStudentReport(report) {
+      hideTransitionLoader();
+      
+      if (report.error) {
+        showStatus("Error: " + report.error, "error");
+        return;
+      }
+      
+      // Update report header
+      document.getElementById("report-message").textContent = report.summary.message;
+      
+      const gradeContainer = document.getElementById("report-grade-container");
+      if (report.quizPerformance.totalQuestions > 0) {
+        gradeContainer.style.display = "block";
+        document.getElementById("report-grade").textContent = report.summary.grade;
+      } else {
+        gradeContainer.style.display = "none";
+      }
+      
+      document.getElementById("report-feedback").textContent = report.summary.feedback;
+      
+      // Update performance metrics
+      document.getElementById("total-questions").textContent = report.quizPerformance.totalQuestions;
+      document.getElementById("correct-answers").textContent = report.quizPerformance.correctAnswers;
+      document.getElementById("accuracy-percentage").textContent = 
+        report.quizPerformance.accuracyPercentage.toFixed(1) + "%";
+      
+      // Update viewing stats
+      document.getElementById("total-time-spent").textContent = 
+        formatTime(report.viewingStatistics.totalTimeSpent);
+      document.getElementById("completion-percentage").textContent = 
+        report.viewingStatistics.completionPercentage.toFixed(0) + "%";
+      document.getElementById("notes-count").textContent = report.notesCount;
+      
+      // Show/hide sections based on data
+      document.getElementById("quiz-details-section").style.display = 
+        report.quizPerformance.totalQuestions > 0 ? "block" : "none";
+      
+      // Update quiz details table
+      const quizTable = document.getElementById("quiz-results-table").querySelector("tbody");
+      quizTable.innerHTML = "";
+      
+      // Use our local quizResults if available, or the server data
+      const quizDetails = quizResults.length > 0 ? quizResults : report.quizPerformance.quizDetails;
+      
+      quizDetails.forEach((result, index) => {
+        const row = document.createElement("tr");
+        
+        // Find the overlay title if available
+        let questionTitle = "Question " + (index + 1);
+        
+        if (result.overlayId && overlays) {
+          for (const overlay of overlays) {
+            if (overlay.id === result.overlayId) {
+              questionTitle = overlay.title;
+              break;
+            }
+          }
+        }
+        
+        const questionCell = document.createElement("td");
+        questionCell.textContent = questionTitle;
+        
+        const answerCell = document.createElement("td");
+        answerCell.textContent = result.selectedOption || "No answer";
+        
+        const resultCell = document.createElement("td");
+        resultCell.textContent = result.wasCorrect ? "Correct" : "Incorrect";
+        resultCell.className = result.wasCorrect ? "result-correct" : "result-incorrect";
+        
+        const timeCell = document.createElement("td");
+        timeCell.textContent = result.timeToAnswer.toFixed(1);
+        
+        row.appendChild(questionCell);
+        row.appendChild(answerCell);
+        row.appendChild(resultCell);
+        row.appendChild(timeCell);
+        
+        quizTable.appendChild(row);
+      });
+      
+      // Show the report overlay
+      document.getElementById("report-overlay").style.display = "flex";
+      
+      // Reset displayed overlays for potential replay
+      displayedOverlays = new Set();
+      videoStarted = false;
+    }
+    
+    /**
+     * Restarts the video from the beginning
+     */
+    function restartVideo() {
+      // Hide report overlay
+      document.getElementById("report-overlay").style.display = "none";
+      
+      // Reset quiz results
+      quizResults = [];
+      
+      // Show start overlay
+      document.getElementById("start-overlay").style.display = "flex";
+      
+      // Seek to beginning
+      if (player && player.seekTo) {
+        player.seekTo(0);
+        player.pauseVideo();
+      }
+      
+      // Record event
+      recordEvent("video_restarted");
+    }
+    
+    /**
+     * Downloads the performance report as a PDF
+     * TODO: Implement full PDF generation
+     */
+    function downloadReport() {
+      // Simple implementation - generate a text summary
+      const reportText = document.getElementById("report-message").textContent + "\n\n" +
+                         "Grade: " + document.getElementById("report-grade").textContent + "\n" +
+                         "Feedback: " + document.getElementById("report-feedback").textContent + "\n\n" +
+                         "Questions: " + document.getElementById("total-questions").textContent + "\n" +
+                         "Correct: " + document.getElementById("correct-answers").textContent + "\n" +
+                         "Accuracy: " + document.getElementById("accuracy-percentage").textContent + "\n\n" +
+                         "Video: " + videoData.videoTitle + "\n" +
+                         "Session: " + sessionId;
+      
+      // Create a download link
+      const element = document.createElement('a');
+      element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(reportText));
+      element.setAttribute('download', 'performance-report.txt');
+      
+      element.style.display = 'none';
+      document.body.appendChild(element);
+      
+      element.click();
+      
+      document.body.removeChild(element);
+      
+      // Record event
+      recordEvent("report_downloaded");
+    }
+    
+    /**
+     * Shares the report results (placeholder)
+     * TODO: Implement actual sharing functionality
+     */
+    function shareReport() {
+      // Placeholder - in a real implementation, this would open sharing options
+      alert("This feature would allow sharing results via email or other channels.");
+      
+      // Record event
+      recordEvent("report_shared");
+    }
+    
+    /**
+     * Starts checking for overlays based on video time
+     */
+    function startCheckingTime() {
+      // Clear any existing interval
+      stopCheckingTime();
+      
+      // Start a new interval
+      checkInterval = setInterval(checkVideoTime, 500);
+    }
+    
+    /**
+     * Stops checking for overlays
+     */
+    function stopCheckingTime() {
+      if (checkInterval) {
+        clearInterval(checkInterval);
+        checkInterval = null;
+      }
+    }
+    
+    /**
+     * Checks the current video time against overlay timestamps
+     */
+    function checkVideoTime() {
+      if (!player || !player.getCurrentTime || !overlays) return;
+      
+      const currentTime = player.getCurrentTime();
+      
+      // Skip if in the middle of a manual seek
+      if (manualSeek) {
+        manualSeek = false;
+        return;
+      }
+      
+      // Check each overlay
+      for (const overlay of overlays) {
+        // If we haven't shown this overlay yet and we've passed its timestamp
+        if (!displayedOverlays.has(overlay.id) && currentTime >= overlay.timestamp) {
+          // Show transition loader
+          showTransitionLoader("Loading interactive element...");
+          
+          // Short delay for the transition effect
+          setTimeout(() => {
+            hideTransitionLoader();
+            showContentOverlay(overlay);
+          }, 500);
+          
+          displayedOverlays.add(overlay.id);
+          
+          // Also mark any overlays in the same group as displayed
+          if (overlay.groupName && overlayGroups[overlay.groupName]) {
+            overlayGroups[overlay.groupName].forEach(id => {
+              if (id !== overlay.id) {
+                displayedOverlays.add(id);
+              }
+            });
+          }
+          
+          break; // Only show one overlay at a time
+        }
+      }
+    }
+    
+    /**
+     * Shows the transition loader
+     * @param {string} message - Optional message to display
+     */
+    function showTransitionLoader(message = "Loading...") {
+      const loader = document.getElementById("transition-loader");
+      document.getElementById("transition-message").textContent = message;
+      loader.style.display = "flex";
+    }
+    
+    /**
+     * Hides the transition loader
+     */
+    function hideTransitionLoader() {
+      document.getElementById("transition-loader").style.display = "none";
+    }
+    
+    /**
+     * Shows a content overlay
+     * @param {Object} overlay - Overlay data
+     */
+    function showContentOverlay(overlay) {
+      // Store current overlay
+      currentOverlay = overlay;
+      
+      // Reset quiz state
+      isQuizAnswered = false;
+      quizStartTime = Date.now();
+      
+      // Pause the video
+      if (player && player.pauseVideo) {
+        player.pauseVideo();
+      }
+      
+      // Set overlay content
+      document.getElementById("overlay-title").textContent = overlay.title;
+      document.getElementById("overlay-body").innerHTML = overlay.content;
+      
+      const quizOptionsElement = document.getElementById("quiz-options");
+      const feedbackElement = document.getElementById("feedback");
+      const explanationElement = document.getElementById("quiz-explanation");
+      const imageContainer = document.getElementById("overlay-image-container");
+      const continueButton = document.getElementById("continue-btn");
+      
+      // Clear previous content
+      quizOptionsElement.innerHTML = "";
+      feedbackElement.innerHTML = "";
+      feedbackElement.style.display = "none";
+      explanationElement.innerHTML = "";
+      explanationElement.style.display = "none";
+      imageContainer.innerHTML = "";
+      
+      // Add image if present
+      if (overlay.image && overlay.image.url) {
+        const img = document.createElement("img");
+        img.src = overlay.image.url;
+        img.alt = overlay.title;
+        img.className = "overlay-image";
+        
+        if (overlay.image.width !== "auto") {
+          img.style.width = overlay.image.width;
+        }
+        
+        if (overlay.image.height !== "auto") {
+          img.style.height = overlay.image.height;
+        }
+        
+        imageContainer.appendChild(img);
+      }
+      
+      // Handle different overlay types
+      if (overlay.type.includes('quiz')) {
+        // Setup quiz options
+        quizOptionsElement.style.display = "flex";
+        
+        if (overlay.options && overlay.options.length > 0) {
+          overlay.options.forEach((option, index) => {
+            const optionElement = document.createElement("div");
+            optionElement.className = "quiz-option";
+            optionElement.textContent = option.text;
+            optionElement.dataset.index = index;
+            optionElement.dataset.correct = option.isCorrect;
+            optionElement.dataset.feedback = option.feedback || "";
+            
+            optionElement.addEventListener("click", function() {
+              if (!isQuizAnswered) {
+                selectQuizOption(this);
+              }
+            });
+            
+            quizOptionsElement.appendChild(optionElement);
+          });
+        }
+        
+        // Hide continue button until an answer is selected
+        continueButton.style.display = "none";
+      } else {
+        // For info overlays
+        quizOptionsElement.style.display = "none";
+        continueButton.style.display = "block";
+      }
+      
+      // Handle continue button
+      continueButton.onclick = handleOverlayContinue;
+      
+      // Show the overlay
+      document.getElementById("content-overlay").style.display = "flex";
+      
+      // Record overlay view event
+      recordEvent("overlay_viewed", {
+        overlayId: overlay.id,
+        overlayType: overlay.type,
+        timestamp: overlay.timestamp
+      });
+    }
+    
+    /**
+     * Handles quiz option selection
+     * @param {HTMLElement} optionElement - Selected option element
+     */
+    function selectQuizOption(optionElement) {
+      if (!currentOverlay) return;
+      
+      const quizOptionsElement = document.getElementById("quiz-options");
+      const feedbackElement = document.getElementById("feedback");
+      const explanationElement = document.getElementById("quiz-explanation");
+      const continueButton = document.getElementById("continue-btn");
+      const isCorrect = optionElement.dataset.correct === "true";
+      const feedback = optionElement.dataset.feedback || 
+                      (isCorrect ? currentOverlay.correctFeedback : currentOverlay.incorrectFeedback);
+      
+      // Calculate time to answer
+      const timeToAnswer = (Date.now() - quizStartTime) / 1000;
+      
+      // Mark as answered
+      isQuizAnswered = true;
+      
+      // Style the selected option
+      optionElement.classList.add("selected");
+      optionElement.classList.add(isCorrect ? "correct" : "incorrect");
+      
+      // Style all options to show correct/incorrect
+      const options = quizOptionsElement.querySelectorAll(".quiz-option");
+      options.forEach(option => {
+        // Disable clicking
+        option.style.pointerEvents = "none";
+        
+        // Show which is the correct answer
+        if (option.dataset.correct === "true") {
+          option.classList.add("correct");
+        }
+      });
+      
+      // Show feedback
+      if (feedback) {
+        feedbackElement.innerHTML = feedback;
+      } else {
+        feedbackElement.innerHTML = isCorrect ? 
+          "<strong>Correct!</strong>" : 
+          "<strong>Incorrect!</strong> The correct answer has been highlighted.";
+      }
+      
+      feedbackElement.style.backgroundColor = isCorrect ? 
+        "rgba(52, 168, 83, 0.2)" : 
+        "rgba(234, 67, 53, 0.2)";
+      feedbackElement.style.border = isCorrect ? 
+        "1px solid #34a853" : 
+        "1px solid #ea4335";
+      feedbackElement.style.display = "block";
+      
+      // Show explanation if available
+      if (currentOverlay.explanation) {
+        explanationElement.innerHTML = "<strong>Explanation:</strong> " + currentOverlay.explanation;
+        explanationElement.style.display = "block";
+      }
+      
+      // Show continue button (unless we require correct answers and this was wrong)
+      if (!(requireCorrectAnswers && !isCorrect)) {
+        continueButton.style.display = "block";
+      }
+      
+      // Store quiz result for report
+      quizResults.push({
+        overlayId: currentOverlay.id,
+        quizType: currentOverlay.type,
+        wasCorrect: isCorrect,
+        selectedOption: optionElement.textContent,
+        timeToAnswer: timeToAnswer
+      });
+      
+      // Record quiz attempt
+      const quizData = {
+        userId: userId,
+        videoTitle: videoData.videoTitle,
+        overlayId: currentOverlay.id,
+        quizType: currentOverlay.type,
+        wasCorrect: isCorrect,
+        selectedOption: optionElement.textContent,
+        timeToAnswer: timeToAnswer,
+        sessionId: sessionId
+      };
+      
+      google.script.run
+        .withFailureHandler(error => console.error("Error recording quiz attempt:", error))
+        .recordQuizAttempt(quizData);
+    }
+    
+    /**
+     * Handles the continue button action after overlay
+     */
+    function handleOverlayContinue() {
+      if (!currentOverlay) {
+        // No current overlay, just hide it
+        hideContentOverlay();
+        return;
+      }
+      
+      // Handle next action based on overlay settings
+      const nextAction = currentOverlay.nextAction;
+      const actionParam = currentOverlay.actionParam;
+      
+      // First, hide the overlay
+      hideContentOverlay();
+      
+      // Then perform the next action
+      switch (nextAction) {
+        case 'continue':
+          // Standard behavior - just resume video
+          if (player && player.playVideo) {
+            player.playVideo();
+          }
+          break;
+          
+        case 'next_question':
+          // Go to next question timestamp if available
+          if (actionParam && player && player.seekTo) {
+            manualSeek = true;
+            player.seekTo(parseFloat(actionParam));
+            player.playVideo();
+          } else {
+            // No next question specified, just continue
+            if (player && player.playVideo) {
+              player.playVideo();
+            }
+          }
+          break;
+          
+        case 'if_correct':
+          // Handle correct/incorrect branching
+          if (isQuizAnswered) {
+            // Check if the last quiz was answered correctly
+            const lastQuizResult = quizResults[quizResults.length - 1];
+            if (lastQuizResult && lastQuizResult.wasCorrect && actionParam) {
+              // Correct answer, go to specified timestamp
+              if (player && player.seekTo) {
+                manualSeek = true;
+                player.seekTo(parseFloat(actionParam));
+                player.playVideo();
+              }
+            } else {
+              // Incorrect answer or no parameter, just continue
+              if (player && player.playVideo) {
+                player.playVideo();
+              }
+            }
+          } else {
+            // Not a quiz or not answered, just continue
+            if (player && player.playVideo) {
+              player.playVideo();
+            }
+          }
+          break;
+          
+        case 'if_incorrect':
+          // Handle correct/incorrect branching
+          if (isQuizAnswered) {
+            // Check if the last quiz was answered incorrectly
+            const lastQuizResult = quizResults[quizResults.length - 1];
+            if (lastQuizResult && !lastQuizResult.wasCorrect && actionParam) {
+              // Incorrect answer, go to specified timestamp
+              if (player && player.seekTo) {
+                manualSeek = true;
+                player.seekTo(parseFloat(actionParam));
+                player.playVideo();
+              }
+            } else {
+              // Correct answer or no parameter, just continue
+              if (player && player.playVideo) {
+                player.playVideo();
+              }
+            }
+          } else {
+            // Not a quiz or not answered, just continue
+            if (player && player.playVideo) {
+              player.playVideo();
+            }
+          }
+          break;
+          
+        case 'end':
+          // End the video and show report
+          if (player) {
+            player.pauseVideo();
+          }
+          videoCompleted();
+          break;
+          
+        default:
+          // Default behavior - just resume video
+          if (player && player.playVideo) {
+            player.playVideo();
+          }
+      }
+    }
+    
+    /**
+     * Hides the content overlay
+     */
+    function hideContentOverlay() {
+      // Hide the overlay
+      document.getElementById("content-overlay").style.display = "none";
+      
+      // Clear current overlay
+      currentOverlay = null;
+    }
+    
+    /**
+     * Shows a status message
+     * @param {string} message - Message to display
+     * @param {string} type - Message type (error, info, success)
+     * @param {number} duration - Duration in milliseconds (0 for no auto-hide)
+     */
+    function showStatus(message, type, duration = 5000) {
+      const statusElement = document.getElementById("status");
+      statusElement.textContent = message;
+      statusElement.className = type;
+      statusElement.style.display = "block";
+      
+      if (duration > 0) {
+        setTimeout(() => {
+          statusElement.style.display = "none";
+        }, duration);
+      }
+    }
+    
+    /**
+     * Handles error from server calls
+     * @param {Object} error - Error object
+     */
+    function handleError(error) {
+      document.getElementById("loading").style.display = "none";
+      showStatus("Error: " + error, "error");
+    }
+    
+    /**
+     * Generates a unique session ID
+     * @returns {string} Session ID
+     */
+    function generateSessionId() {
+      return 'session_' + Math.random().toString(36).substring(2, 15) + 
+             Math.random().toString(36).substring(2, 15);
+    }
+  </script>
+</body>
+</html>
